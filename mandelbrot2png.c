@@ -6,8 +6,6 @@
 #include "./stb_image_write.h"
 
 #define MAX_ITERATION 1000
-#define WIDTH 1000
-#define HEIGHT 1000
 
 struct RGBA {
 	uint8_t r;
@@ -16,8 +14,9 @@ struct RGBA {
 	uint8_t a;
 };
 
-// array of 32bit pixels;
-static struct RGBA pixels[WIDTH*HEIGHT];
+static size_t width,height = 800;
+static char* output_path  = "mandelbrot.png";
+static int verbose = 0;
 
 // scalling a float color [0..1] to rgba;
 struct RGBA get_rgba_from_float(float color){
@@ -29,7 +28,8 @@ struct RGBA get_rgba_from_float(float color){
 	};
 }
 
-struct RGBA hsv_to_rgba(float h, float s, float v) {
+struct RGBA hsv_to_rgba(float h, float s, float v)
+{
     float r, g, b;
     int i = (int)(h * 6);
     float f = h * 6 - i;
@@ -52,15 +52,74 @@ struct RGBA hsv_to_rgba(float h, float s, float v) {
     };
 }
 
-struct RGBA map_color(float t) {
+struct RGBA map_color(float t)
+{
     float h = fmod(t * 10, 1.0);  // Hue cycles every 10 iterations
     float s = 1.0;               // Full saturation
     float v = t < 0.5 ? 2 * t : 1.0; // Brightness increases with t
     return hsv_to_rgba(h, s, v);
 }
 
+char* shift(int* argc, char*** argv)
+{
+	char* result = *argv[0];
+	++*argv, --*argc;
+	return result;
+}
 
-int main(){
+void usage(char* program)
+{
+	printf("Usage: %s [OPTION].. [OUTPUT_PATH]\nGenerate mandelbrot set png file\n"
+	"\t-w, --width\t\t png image width\n"
+	"\t-h, --height\t\t png image height\n"
+	"\t-v, --verbose\t\t enable logging\n"
+	"\t-h, --help\t\t print this help message and exit\n"
+	,program);
+}
+
+int main(int argc, char** argv)
+{
+	char* program = shift(&argc, &argv);
+	int is_output_path_set = 0;
+	while (argc > 0){
+		char* arg = shift(&argc, &argv);
+		if (!strcmp(arg,"-w") || !strcmp(arg,"--width")){
+			if (argc <= 0){
+				fprintf(stderr,"missing value for --width\n");
+				exit(1);
+			}
+			arg = shift(&argc, &argv);
+			width = atoll(arg);
+			if (!width) fprintf(stderr,"--width expects an integer\n"),exit(1);
+
+		}else if (!strcmp(arg,"-h") || !strcmp(arg,"--height")){
+			if (argc <= 0){
+				fprintf(stderr,"missing value for --height\n");
+				exit(1);
+			}
+			arg = shift(&argc, &argv);
+			height = atoll(arg);
+			if (!height) fprintf(stderr,"--height expects an integer\n"),exit(1);
+		}else if (!strcmp(arg,"-v") || !strcmp(arg,"--verbose")){
+			verbose = 1;
+		}
+		else if (!strcmp(arg,"--help")){
+			usage(program);
+			exit(0);
+		}else if(arg[0] == '-'){
+			fprintf(stderr,"Unknown Option: %s\n" "Try '%s --help' for more information.",arg,program);
+			exit(1);
+		}else{
+			if (!is_output_path_set){
+				output_path = arg;
+				is_output_path_set = 1;
+			}else {
+				fprintf(stderr,"Unknown Option: %s\n" "Try '%s --help' for more information.\n",arg,program);
+				exit(1);
+			}
+		}
+	}
+	struct RGBA pixels[width*height];
 	const double complex z0 = 0+I*0;
 	const float re_min = -2.0f;
 	const float re_max = 1.0f;
@@ -73,12 +132,11 @@ int main(){
 	int px,py;
 	float x,y;
 	float color;
-	const char* filename = "mandelbrot.png";
-	// time complexity is O()
-	for (py = 0; py < HEIGHT; ++py){ //HEIGHT*WIDTH
-		for (px = 0; px < WIDTH; ++px) {
-			x = re_min + ((float)(px) / WIDTH) * (re_max - re_min);
-			y = im_min + ((float)(py) / HEIGHT) * (im_max - im_min);
+	if (verbose) fprintf(stdout,"[INFO]: Generating Png Image %lux%lupx\n",width,height);
+	for (py = 0; py < (int)height; ++py){
+		for (px = 0; px < (int)width; ++px) {
+			x = re_min + ((float)(px) / width) * (re_max - re_min);
+			y = im_min + ((float)(py) / height) * (im_max - im_min);
 			c = x + y * I;
 			i = 0;
 			zn = z0;
@@ -88,9 +146,11 @@ int main(){
 				i++;
 			}
 			color = (float)i / MAX_ITERATION;
-			pixels[py * HEIGHT + px] = map_color(color);
+			pixels[py * height + px] = map_color(color);
 		}
 	}
-	stbi_write_png(filename, WIDTH, HEIGHT, 4, &pixels, sizeof(struct RGBA) * WIDTH);
+	if (verbose) fprintf(stdout,"[INFO]: Writing Png Image to %s\n",output_path);
+	stbi_write_png(output_path, width, height, 4, &pixels, sizeof(struct RGBA) * width);
+	if (verbose) fprintf(stdout,"Done.\n");
 	return 0;
 }
