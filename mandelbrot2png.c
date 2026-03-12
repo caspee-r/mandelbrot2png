@@ -14,7 +14,9 @@ struct RGBA {
 	uint8_t a;
 };
 
-static size_t width,height = 800;
+static size_t width = 800;
+static size_t height = 800;
+static size_t max_iterations = MAX_ITERATION;
 static char* output_path  = "mandelbrot.png";
 static int verbose = 0;
 
@@ -84,22 +86,32 @@ int main(int argc, char** argv)
 	while (argc > 0){
 		char* arg = shift(&argc, &argv);
 		if (!strcmp(arg,"-w") || !strcmp(arg,"--width")){
+			char* arg_name = arg;
 			if (argc <= 0){
-				fprintf(stderr,"missing value for --width\n");
+				fprintf(stderr,"missing value for %s\n", arg_name);
 				exit(1);
 			}
 			arg = shift(&argc, &argv);
 			width = atoll(arg);
-			if (!width) fprintf(stderr,"--width expects an integer\n"),exit(1);
-
+			if (!width) fprintf(stderr,"%s expects an integer\n", arg_name),exit(1);
 		}else if (!strcmp(arg,"-h") || !strcmp(arg,"--height")){
+			char* arg_name = arg;
 			if (argc <= 0){
-				fprintf(stderr,"missing value for --height\n");
+				fprintf(stderr,"missing value for %s\n", arg_name);
 				exit(1);
 			}
 			arg = shift(&argc, &argv);
 			height = atoll(arg);
-			if (!height) fprintf(stderr,"--height expects an integer\n"),exit(1);
+			if (!height) fprintf(stderr,"%s expects an integer\n", arg_name),exit(1);
+		}else if (!strcmp(arg,"-m") || !strcmp(arg,"--max-iterations")){
+			char* arg_name = arg;
+			if (argc <= 0){
+				fprintf(stderr,"missing value for %s\n", arg_name);
+				exit(1);
+			}
+			arg = shift(&argc, &argv);
+			max_iterations = atoll(arg);
+			if (!max_iterations) fprintf(stderr," %s expects an integer\n", arg_name),exit(1);
 		}else if (!strcmp(arg,"-v") || !strcmp(arg,"--verbose")){
 			verbose = 1;
 		}
