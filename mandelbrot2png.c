@@ -74,9 +74,41 @@ void usage(char* program)
 	printf("Usage: %s [OPTION].. [OUTPUT_PATH]\nGenerate mandelbrot set png file\n"
 	"\t-w, --width\t\t png image width\n"
 	"\t-h, --height\t\t png image height\n"
+	"\t-m, --max-iterations\t\t mandelbrot maximum iterations count\n"
 	"\t-v, --verbose\t\t enable logging\n"
 	"\t-h, --help\t\t print this help message and exit\n"
 	,program);
+}
+
+//TODO: generate it on the gpu ?
+void generate_mandelbrotpng(struct RGBA* pixels, float re_min, float re_max, float im_min, float im_max)
+{
+	const double complex z0 = 0+I*0;
+	double complex zn;
+	double complex	z_next;
+	double complex c;
+	size_t i;
+	int px,py;
+	float x,y;
+	float iteration_percentage;
+	for (py = 0; py < (int)height; ++py){
+		for (px = 0; px < (int)width; ++px) {
+			x = re_min + ((float)(px) / width) * (re_max - re_min);
+			y = im_min + ((float)(py) / height) * (im_max - im_min);
+			c = x + y * I;
+			i = 0;
+			zn = z0;
+			while(cabs(zn) < 2 && i < max_iterations){
+				z_next = zn * zn + c;
+				zn = z_next;
+				i++;
+			}
+			// Now we need to derive a color from the percentage of i / MAX_ITERATION
+			iteration_percentage = (float)i / (float)max_iterations;
+
+			pixels[py * height + px] = map_color(iteration_percentage);
+		}
+	}
 }
 
 int main(int argc, char** argv)
@@ -132,35 +164,12 @@ int main(int argc, char** argv)
 		}
 	}
 	struct RGBA pixels[width*height];
-	const double complex z0 = 0+I*0;
 	const float re_min = -2.0f;
 	const float re_max = 1.0f;
 	const float im_min = -1.5f;
 	const float im_max = 1.5f;
-	double complex zn;
-	double complex	z_next;
-	double complex c;
-	int i;
-	int px,py;
-	float x,y;
-	float color;
 	if (verbose) fprintf(stdout,"[INFO]: Generating Png Image %lux%lupx\n",width,height);
-	for (py = 0; py < (int)height; ++py){
-		for (px = 0; px < (int)width; ++px) {
-			x = re_min + ((float)(px) / width) * (re_max - re_min);
-			y = im_min + ((float)(py) / height) * (im_max - im_min);
-			c = x + y * I;
-			i = 0;
-			zn = z0;
-			while(cabs(zn) < 2 && i < MAX_ITERATION){
-				z_next = zn * zn + c;
-				zn = z_next;
-				i++;
-			}
-			color = (float)i / MAX_ITERATION;
-			pixels[py * height + px] = map_color(color);
-		}
-	}
+	generate_mandelbrotpng(pixels, re_min, re_max, im_min, im_max);
 	if (verbose) fprintf(stdout,"[INFO]: Writing Png Image to %s\n",output_path);
 	stbi_write_png(output_path, width, height, 4, &pixels, sizeof(struct RGBA) * width);
 	if (verbose) fprintf(stdout,"Done.\n");
